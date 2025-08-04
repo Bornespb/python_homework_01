@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-extras --dev
 
+      - name: Install Ruff
+        uses: astral-sh/ruff-action@v3
+
       - name: Run linter
         run: ruff check --fix
 
