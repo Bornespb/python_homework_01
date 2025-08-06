@@ -9,4 +9,4 @@ test-cov:
 	pytest tests --cov=. --cov-config=tests/.coveragerc --cov-report term
 
 run:
-	python log_analyzer/log_analyzer.py
+	python log_analyzer/log_analyzer.py ${PARAMS}
