@@ -9,4 +9,4 @@ test-cov:
 	pytest tests --cov=log_analyzer --cov-report term
 
 run:
-	python log_analyzer/log_analyzer.py ${PARAMS}
+	python -m log_analyzer.log_analyzer ${PARAMS}
