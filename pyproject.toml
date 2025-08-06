@@ -28,6 +28,11 @@ exclude = ["scripts", "docs", "test"]
 disable_error_code = ["name-defined"]
 ignore_missing_imports = true
 
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 110
 indent-width = 4

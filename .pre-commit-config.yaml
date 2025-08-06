@@ -18,9 +18,9 @@ repos:
   - id: mypy
     args: [ --strict ]
 # pytest
-#- repo: https://github.com/christophmeissner/pytest-pre-commit
-#  rev: 1.0.0
-#  hooks:
-#  - id: pytest
-#    pass_filenames: false
-#    always_run: true
+- repo: https://github.com/christophmeissner/pytest-pre-commit
+  rev: 1.0.0
+  hooks:
+  - id: pytest
+    pass_filenames: false
+    always_run: true

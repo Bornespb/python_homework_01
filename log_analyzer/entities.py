@@ -21,16 +21,12 @@ class Config:
 
     @classmethod
     def from_dict(cls, data: JsonConfig) -> "Config":
-        try:
-            return cls(
-                log_dir=data.get("LOG_DIR"),
-                report_dir=data.get("REPORT_DIR"),
-                report_size=data.get("REPORT_SIZE"),
-                report_template_path=data.get("REPORT_TEMPLATE_PATH"),
-            )
-        except TypeError as e:
-            # structlog?
-            raise e
+        return cls(
+            log_dir=data.get("LOG_DIR"),
+            report_dir=data.get("REPORT_DIR"),
+            report_size=data.get("REPORT_SIZE"),
+            report_template_path=data.get("REPORT_TEMPLATE_PATH"),
+        )
 
     @classmethod
     def get_default_config(cls) -> "Config":
@@ -38,7 +34,7 @@ class Config:
             log_dir="./log",
             report_dir="./report",
             report_size=1000,
-            report_template_path="./resources/report.html",
+            report_template_path="./data/report.html",
         )
 
 

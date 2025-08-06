@@ -30,16 +30,31 @@ def merge_config(default_config: Config, external_config_path: str | None) -> Co
     if not external_config_path:
         return default_config
 
+    if not os.path.exists(external_config_path):
+        raise FileNotFoundError(f"Config file {external_config_path} not found")
+
     with open(external_config_path) as config_file:
         config_data = json.load(config_file)
 
     external_config = Config.from_dict(JsonConfig(config_data))
+
     return Config(
         log_dir=external_config.log_dir or default_config.log_dir,
         report_dir=external_config.report_dir or default_config.report_dir,
         report_size=external_config.report_size or default_config.report_size,
         report_template_path=external_config.report_template_path or default_config.report_template_path,
     )
+
+
+def validate_config(config: Config) -> None:
+    if not config.log_dir or not os.path.exists(config.log_dir):
+        raise ValueError("Log directory is not set or does not exist")
+    if not config.report_dir or not os.path.exists(config.report_dir):
+        raise ValueError("Report directory is not set or does not exist")
+    if not config.report_size:
+        raise ValueError("Report size is not set")
+    if not config.report_template_path or not os.path.exists(config.report_template_path):
+        raise ValueError("Report template path is not set or does not exist")
 
 
 def get_last_log_file_name(log_folder_path: str) -> LogInfo:
@@ -117,6 +132,8 @@ def main() -> None:
         config = Config.get_default_config()
         args_config_path = parse_config()
         config = merge_config(config, args_config_path)
+
+        validate_config(config)
 
         last_log_info = get_last_log_file_name(config.log_dir)
 
