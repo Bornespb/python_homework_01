@@ -1,0 +1,6 @@
+{
+    "LOG_DIR": "./log",
+    "REPORT_DIR": "./report",
+    "REPORT_TEMPLATE_PATH": "./data/report.html",
+    "REPORT_SIZE": 1000
+}

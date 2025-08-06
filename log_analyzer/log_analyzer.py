@@ -1,8 +1,3 @@
-# log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
-#                     '$status $body_bytes_sent "$http_referer" '
-#                     '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" "$http_X_RB_USER" '
-#                     '$request_time';
-
 import argparse
 import gzip
 import json
@@ -13,10 +8,11 @@ from collections.abc import Generator
 from datetime import datetime
 from string import Template
 
-from entities import Config, JsonConfig, LogInfo, RawLog, UriStatistics
+from log_analyzer.entities import Config, JsonConfig, LogInfo, RawLog, UriStatistics
 
 LOG_FILES_PATTERN = r"nginx-access-ui.log-(\d{8})(?:\.gz)?$"
 REPORT_FILE_NAME_TEMPLATE = "report-$year.$month.$day.html"
+DEFAULT_CONFIG_PATH = "./data/config.json"
 
 
 def parse_config() -> str | None:
@@ -36,30 +32,20 @@ def merge_config(default_config: Config, external_config_path: str | None) -> Co
     with open(external_config_path) as config_file:
         config_data = json.load(config_file)
 
-    external_config = Config.from_dict(JsonConfig(config_data))
-
     return Config(
-        log_dir=external_config.log_dir or default_config.log_dir,
-        report_dir=external_config.report_dir or default_config.report_dir,
-        report_size=external_config.report_size or default_config.report_size,
-        report_template_path=external_config.report_template_path or default_config.report_template_path,
+        log_dir=config_data.get("LOG_DIR") or default_config.log_dir,
+        report_dir=config_data.get("REPORT_DIR") or default_config.report_dir,
+        report_size=config_data.get("REPORT_SIZE") or default_config.report_size,
+        report_template_path=config_data.get("REPORT_TEMPLATE_PATH") or default_config.report_template_path,
     )
-
-
-def validate_config(config: Config) -> None:
-    if not config.log_dir or not os.path.exists(config.log_dir):
-        raise ValueError("Log directory is not set or does not exist")
-    if not config.report_dir or not os.path.exists(config.report_dir):
-        raise ValueError("Report directory is not set or does not exist")
-    if not config.report_size:
-        raise ValueError("Report size is not set")
-    if not config.report_template_path or not os.path.exists(config.report_template_path):
-        raise ValueError("Report template path is not set or does not exist")
 
 
 def get_last_log_file_name(log_folder_path: str) -> LogInfo:
     latest_log_file = None
     latest_log_date = None
+
+    if not os.path.exists(log_folder_path):
+        raise ValueError(f"Log folder {log_folder_path} does not exist")
 
     for file in os.scandir(log_folder_path):
         file_match = re.match(LOG_FILES_PATTERN, file.name)
@@ -82,8 +68,12 @@ def get_last_log_file_name(log_folder_path: str) -> LogInfo:
     )
 
 
-def read_log_file(log_file_path: str, log_file_ext: str) -> Generator[str]:
-    with gzip.open(log_file_path, "rt") if log_file_ext == ".gz" else open(log_file_path) as log_file:
+def read_log_file(log_file_path: str, log_file_ext: str | None) -> Generator[str]:
+    with (
+        gzip.open(log_file_path, "rt")
+        if log_file_ext and log_file_ext == ".gz"
+        else open(log_file_path) as log_file
+    ):
         yield from log_file.readlines()
 
 
@@ -100,7 +90,7 @@ def analyze_logs(log_line_gen: Generator[str]) -> list[UriStatistics]:
         is_updated, report_entry = UriStatistics.update_statistics(
             report_entry, log_entry, total_line_count, total_request_time
         )
-        if not is_updated:
+        if not is_updated or not report_entry:
             failed_logs += 1
             continue
         report_data[log_entry.request] = report_entry
@@ -129,11 +119,21 @@ def generate_report(log_date: datetime, processed_logs: list[UriStatistics], con
 
 def main() -> None:
     try:
-        config = Config.get_default_config()
+        if not os.path.exists(DEFAULT_CONFIG_PATH):
+            raise FileNotFoundError(f"Config file {DEFAULT_CONFIG_PATH} not found")
+        with open(DEFAULT_CONFIG_PATH) as config_file:
+            config_data = json.load(config_file)
+            config = Config.from_dict(
+                JsonConfig(
+                    LOG_DIR=config_data.get("LOG_DIR"),
+                    REPORT_DIR=config_data.get("REPORT_DIR"),
+                    REPORT_SIZE=config_data.get("REPORT_SIZE"),
+                    REPORT_TEMPLATE_PATH=config_data.get("REPORT_TEMPLATE_PATH"),
+                )
+            )
+
         args_config_path = parse_config()
         config = merge_config(config, args_config_path)
-
-        validate_config(config)
 
         last_log_info = get_last_log_file_name(config.log_dir)
 

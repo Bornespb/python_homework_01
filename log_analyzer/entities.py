@@ -1,3 +1,4 @@
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,27 +15,37 @@ class JsonConfig(TypedDict):
 
 @dataclass
 class Config:
-    log_dir: str | None
-    report_dir: str | None
-    report_size: int | None
-    report_template_path: str | None
+    log_dir: str
+    report_dir: str
+    report_size: int
+    report_template_path: str
 
     @classmethod
     def from_dict(cls, data: JsonConfig) -> "Config":
-        return cls(
-            log_dir=data.get("LOG_DIR"),
-            report_dir=data.get("REPORT_DIR"),
-            report_size=data.get("REPORT_SIZE"),
-            report_template_path=data.get("REPORT_TEMPLATE_PATH"),
-        )
+        if not data:
+            raise ValueError("Config data is empty")
 
-    @classmethod
-    def get_default_config(cls) -> "Config":
+        log_dir = data.get("LOG_DIR")
+        if not log_dir or not os.path.exists(log_dir):
+            raise ValueError("LOG_DIR is not set or does not exist")
+
+        report_dir = data.get("REPORT_DIR")
+        if not report_dir or not os.path.exists(report_dir):
+            raise ValueError("REPORT_DIR is not set or does not exist")
+
+        report_size = data.get("REPORT_SIZE")
+        if not report_size:
+            raise ValueError("REPORT_SIZE is not set")
+
+        report_template_path = data.get("REPORT_TEMPLATE_PATH")
+        if not report_template_path or not os.path.exists(report_template_path):
+            raise ValueError("REPORT_TEMPLATE_PATH is not set or does not exist")
+
         return cls(
-            log_dir="./log",
-            report_dir="./report",
-            report_size=1000,
-            report_template_path="./data/report.html",
+            log_dir=log_dir,
+            report_dir=report_dir,
+            report_size=report_size,
+            report_template_path=report_template_path,
         )
 
 
@@ -85,21 +96,21 @@ class RawLog:
             log_fields = re.match(cls.LOG_FORMAT_TEMPLATE, data, re.VERBOSE)
             if not log_fields:
                 raise ValueError(f"Invalid log format: {data}")
-            log_fields = log_fields.groupdict()  # type: ignore
+            fields = log_fields.groupdict()
             return cls(
-                remote_addr=log_fields["remote_addr"],
-                remote_user=log_fields["remote_user"],
-                http_x_real_ip=log_fields["http_x_real_ip"],
-                time_local=log_fields["time_local"],
-                request=log_fields["request"],
-                status=int(log_fields["status"]),
-                body_bytes_sent=int(log_fields["body_bytes_sent"]),
-                http_referer=log_fields["http_referer"],
-                http_user_agent=log_fields["http_user_agent"],
-                http_x_forwarded_for=log_fields["http_x_forwarded_for"],
-                http_X_REQUEST_ID=log_fields["http_X_REQUEST_ID"],
-                http_X_RB_USER=log_fields["http_X_RB_USER"],
-                request_time=float(log_fields["request_time"]),
+                remote_addr=fields["remote_addr"],
+                remote_user=fields["remote_user"],
+                http_x_real_ip=fields["http_x_real_ip"],
+                time_local=fields["time_local"],
+                request=fields["request"],
+                status=int(fields["status"]),
+                body_bytes_sent=int(fields["body_bytes_sent"]),
+                http_referer=fields["http_referer"],
+                http_user_agent=fields["http_user_agent"],
+                http_x_forwarded_for=fields["http_x_forwarded_for"],
+                http_X_REQUEST_ID=fields["http_X_REQUEST_ID"],
+                http_X_RB_USER=fields["http_X_RB_USER"],
+                request_time=float(fields["request_time"]),
             )
         except (TypeError, ValueError) as e:
             raise e
