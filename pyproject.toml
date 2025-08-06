@@ -32,7 +32,7 @@ ignore_missing_imports = true
 line-length = 110
 indent-width = 4
 target-version = "py313"
-exclude = ["log", "report", "resources"]
+exclude = ["data","log", "report"]
 
 [tool.ruff.format]
 line-ending = "lf"
