@@ -134,6 +134,9 @@ def generate_report(report_file_name: str, processed_logs: list[UriStatistics], 
 
 
 def setup_logging(logging_path: str) -> None:
+    if not os.path.exists(logging_path):
+        os.makedirs(logging_path)
+
     logging.basicConfig(
         level=logging.DEBUG,
         handlers=[
@@ -172,12 +175,8 @@ def main() -> None:
         config = merge_config(config, args_config_path)
         logger.debug(f"Config: {config}")
 
-        logging_path = config.logging_path
-        if not os.path.exists(logging_path):
-            os.makedirs(logging_path)
-
-        setup_logging(logging_path)
-        logger = structlog.get_logger()
+        config.validate()
+        setup_logging(config.logging_path)
 
         last_log_info = get_last_log_file_name(config.log_dir)
         logger.info(f"Last log info: {last_log_info}")

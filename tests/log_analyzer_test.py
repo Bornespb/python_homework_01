@@ -2,20 +2,18 @@ import sys
 
 import pytest
 
-from log_analyzer.entities import Config, JsonConfig
+from log_analyzer.entities import Config
 from log_analyzer.log_analyzer import get_last_log_file_name, merge_config, parse_config
 
 
 def _get_default_config() -> Config:
-    return Config.from_dict(
-        JsonConfig(
-            LOG_DIR="./data/log",
-            REPORT_DIR="./data/report",
-            REPORT_SIZE=1000,
-            REPORT_TEMPLATE_PATH="./data/report.html",
-            LOGGING_PATH="./logs",
-            FAILURE_THRESHOLD=0.3,
-        )
+    return Config(
+        log_dir="./data/log",
+        report_dir="./data/report",
+        report_size=1000,
+        report_template_path="./data/report.html",
+        logging_path="./logs",
+        failure_threshold=0.3,
     )
 
 
