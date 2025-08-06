@@ -17,7 +17,7 @@ from log_analyzer.entities import Config, LogInfo, RawLog, UriStatistics
 LOG_FILES_PATTERN = r"nginx-access-ui.log-(\d{8})(?:\.gz)?$"
 REPORT_FILE_NAME_TEMPLATE = "report-$year.$month.$day.html"
 
-logger: structlog.BoundLogger = None
+logger: structlog.BoundLogger
 
 
 def parse_config() -> str | None:
