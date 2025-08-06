@@ -1,4 +1,3 @@
-import json
 import sys
 
 import pytest
@@ -8,16 +7,16 @@ from log_analyzer.log_analyzer import get_last_log_file_name, merge_config, pars
 
 
 def _get_default_config() -> Config:
-    with open("./data/config.json") as config_file:
-        config_data = json.load(config_file)
-        return Config.from_dict(
-            JsonConfig(
-                LOG_DIR=config_data.get("LOG_DIR"),
-                REPORT_DIR=config_data.get("REPORT_DIR"),
-                REPORT_SIZE=config_data.get("REPORT_SIZE"),
-                REPORT_TEMPLATE_PATH=config_data.get("REPORT_TEMPLATE_PATH"),
-            )
+    return Config.from_dict(
+        JsonConfig(
+            LOG_DIR="./data/log",
+            REPORT_DIR="./data/report",
+            REPORT_SIZE=1000,
+            REPORT_TEMPLATE_PATH="./data/report.html",
+            LOGGING_PATH="./logs",
+            FAILURE_THRESHOLD=0.3,
         )
+    )
 
 
 def test_parse_config() -> None:

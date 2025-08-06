@@ -1,35 +1,27 @@
-import json
-
 import pytest
 
 from log_analyzer.entities import Config, JsonConfig
 
 
 def _get_default_config_json() -> JsonConfig:
-    with open("./data/config.json") as config_file:
-        config_data = json.load(config_file)
-        return JsonConfig(
-            LOG_DIR=config_data.get("LOG_DIR"),
-            REPORT_DIR=config_data.get("REPORT_DIR"),
-            REPORT_SIZE=config_data.get("REPORT_SIZE"),
-            REPORT_TEMPLATE_PATH=config_data.get("REPORT_TEMPLATE_PATH"),
-        )
+    return JsonConfig(
+        LOG_DIR="./data/log",
+        REPORT_DIR="./data/report",
+        REPORT_SIZE=1000,
+        REPORT_TEMPLATE_PATH="./data/report.html",
+        LOGGING_PATH="./logs",
+        FAILURE_THRESHOLD=0.3,
+    )
 
 
 def test_default_config() -> None:
     config = Config.from_dict(_get_default_config_json())
-    assert config.log_dir == "./log"
-    assert config.report_dir == "./report"
+    assert config.log_dir == "./data/log"
+    assert config.report_dir == "./data/report"
     assert config.report_size == 1000
     assert config.report_template_path == "./data/report.html"
-
-
-def test_from_dict() -> None:
-    config = Config.from_dict(_get_default_config_json())
-    assert config.log_dir == "./log"
-    assert config.report_dir == "./report"
-    assert config.report_size == 1000
-    assert config.report_template_path == "./data/report.html"
+    assert config.logging_path == "./logs"
+    assert config.failure_threshold == 0.3
 
 
 def test_validate_config_invalid_log_dir() -> None:

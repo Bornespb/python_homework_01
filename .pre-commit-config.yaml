@@ -24,3 +24,4 @@ repos:
   - id: pytest
     pass_filenames: false
     always_run: true
+    additional_dependencies: ['structlog>=25.4.0']

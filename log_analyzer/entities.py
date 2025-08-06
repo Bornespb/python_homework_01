@@ -11,6 +11,8 @@ class JsonConfig(TypedDict):
     REPORT_DIR: str | None
     REPORT_SIZE: int | None
     REPORT_TEMPLATE_PATH: str | None
+    LOGGING_PATH: str | None
+    FAILURE_THRESHOLD: float | None
 
 
 @dataclass
@@ -19,6 +21,8 @@ class Config:
     report_dir: str
     report_size: int
     report_template_path: str
+    logging_path: str
+    failure_threshold: float
 
     @classmethod
     def from_dict(cls, data: JsonConfig) -> "Config":
@@ -27,25 +31,35 @@ class Config:
 
         log_dir = data.get("LOG_DIR")
         if not log_dir or not os.path.exists(log_dir):
-            raise ValueError("LOG_DIR is not set or does not exist")
+            raise ValueError(f"LOG_DIR is not set or does not exist: {log_dir}")
 
         report_dir = data.get("REPORT_DIR")
         if not report_dir or not os.path.exists(report_dir):
-            raise ValueError("REPORT_DIR is not set or does not exist")
+            raise ValueError(f"REPORT_DIR is not set or does not exist: {report_dir}")
 
         report_size = data.get("REPORT_SIZE")
         if not report_size:
-            raise ValueError("REPORT_SIZE is not set")
+            raise ValueError(f"REPORT_SIZE is not set: {report_size}")
 
         report_template_path = data.get("REPORT_TEMPLATE_PATH")
         if not report_template_path or not os.path.exists(report_template_path):
-            raise ValueError("REPORT_TEMPLATE_PATH is not set or does not exist")
+            raise ValueError(f"REPORT_TEMPLATE_PATH is not set or does not exist: {report_template_path}")
+
+        logging_path = data.get("LOGGING_PATH")
+        if not logging_path:
+            raise ValueError(f"LOGGING_PATH is not set: {logging_path}")
+
+        failure_threshold = data.get("FAILURE_THRESHOLD")
+        if not failure_threshold:
+            raise ValueError(f"FAILURE_THRESHOLD is not set: {failure_threshold}")
 
         return cls(
             log_dir=log_dir,
             report_dir=report_dir,
             report_size=report_size,
             report_template_path=report_template_path,
+            logging_path=logging_path,
+            failure_threshold=failure_threshold,
         )
 
 
@@ -133,7 +147,7 @@ class UriStatistics:
 
     def to_dict(self) -> dict[str, str | int]:
         return {
-            "uri": self.uri,
+            "uri": self.uri[:100],
             "log_count": self.log_count,
             "log_count_perc": f"{self.log_count_perc:.3f}",
             "time_sum": f"{self.time_sum:.3f}",

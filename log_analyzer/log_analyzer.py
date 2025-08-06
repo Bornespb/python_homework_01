@@ -1,6 +1,7 @@
 import argparse
 import gzip
 import json
+import logging
 import os
 import re
 import sys
@@ -8,11 +9,15 @@ from collections.abc import Generator
 from datetime import datetime
 from string import Template
 
-from log_analyzer.entities import Config, JsonConfig, LogInfo, RawLog, UriStatistics
+import structlog
+from structlog.stdlib import LoggerFactory
+
+from log_analyzer.entities import Config, LogInfo, RawLog, UriStatistics
 
 LOG_FILES_PATTERN = r"nginx-access-ui.log-(\d{8})(?:\.gz)?$"
 REPORT_FILE_NAME_TEMPLATE = "report-$year.$month.$day.html"
-DEFAULT_CONFIG_PATH = "./data/config.json"
+
+logger: structlog.BoundLogger = None
 
 
 def parse_config() -> str | None:
@@ -37,10 +42,12 @@ def merge_config(default_config: Config, external_config_path: str | None) -> Co
         report_dir=config_data.get("REPORT_DIR") or default_config.report_dir,
         report_size=config_data.get("REPORT_SIZE") or default_config.report_size,
         report_template_path=config_data.get("REPORT_TEMPLATE_PATH") or default_config.report_template_path,
+        logging_path=config_data.get("LOGGING_PATH") or default_config.logging_path,
+        failure_threshold=config_data.get("FAILURE_THRESHOLD") or default_config.failure_threshold,
     )
 
 
-def get_last_log_file_name(log_folder_path: str) -> LogInfo:
+def get_last_log_file_name(log_folder_path: str) -> LogInfo | None:
     latest_log_file = None
     latest_log_date = None
 
@@ -57,7 +64,7 @@ def get_last_log_file_name(log_folder_path: str) -> LogInfo:
             latest_log_file = file.path
 
     if not latest_log_date or not latest_log_file:
-        raise ValueError(f"No log files provided in the {log_folder_path} folder.")
+        return None
 
     _, file_ext = os.path.splitext(latest_log_file)
 
@@ -70,77 +77,129 @@ def get_last_log_file_name(log_folder_path: str) -> LogInfo:
 
 def read_log_file(log_file_path: str, log_file_ext: str | None) -> Generator[str]:
     with (
-        gzip.open(log_file_path, "rt")
+        gzip.open(log_file_path, "rt", encoding="utf-8")
         if log_file_ext and log_file_ext == ".gz"
-        else open(log_file_path) as log_file
+        else open(log_file_path, encoding="utf-8") as log_file
     ):
         yield from log_file.readlines()
 
 
-def analyze_logs(log_line_gen: Generator[str]) -> list[UriStatistics]:
+def analyze_logs(log_line_gen: Generator[str], config: Config) -> list[UriStatistics]:
     report_data: dict[str, UriStatistics] = {}
     total_line_count = 0
     total_request_time = 0.0
     failed_logs = 0
     for log_line in log_line_gen:
-        log_entry = RawLog.from_str(log_line)
-        total_line_count += 1
-        total_request_time += log_entry.request_time
-        report_entry = report_data.get(log_entry.request, None)
-        is_updated, report_entry = UriStatistics.update_statistics(
-            report_entry, log_entry, total_line_count, total_request_time
-        )
-        if not is_updated or not report_entry:
+        try:
+            log_entry = RawLog.from_str(log_line)
+            total_line_count += 1
+            total_request_time += log_entry.request_time
+            report_entry = report_data.get(log_entry.request, None)
+            is_updated, report_entry = UriStatistics.update_statistics(
+                report_entry, log_entry, total_line_count, total_request_time
+            )
+            if not is_updated or not report_entry:
+                failed_logs += 1
+                continue
+            report_data[log_entry.request] = report_entry
+        except Exception:
             failed_logs += 1
             continue
-        report_data[log_entry.request] = report_entry
+
+    if failed_logs / total_line_count > config.failure_threshold:
+        raise Exception("Too many failed logs")
+
     return list(report_data.values())
 
 
-def generate_report(log_date: datetime, processed_logs: list[UriStatistics], config: Config) -> None:
-    filtered_logs = list(filter(lambda x: x.time_sum > config.report_size, processed_logs))
-    sorted_logs = sorted(filtered_logs, key=lambda x: x.time_sum, reverse=True)
-    json_logs = json.dumps([log.to_dict() for log in sorted_logs])
+def generate_report_file_name(log_date: datetime) -> str:
+    return Template(REPORT_FILE_NAME_TEMPLATE).substitute(
+        year=log_date.year, month=log_date.month, day=log_date.day
+    )
 
-    with open(config.report_template_path) as report_template:
+
+def generate_report(report_file_name: str, processed_logs: list[UriStatistics], config: Config) -> None:
+    sorted_logs = sorted(processed_logs, key=lambda x: x.time_sum, reverse=True)
+    json_logs = json.dumps([log.to_dict() for log in sorted_logs[: config.report_size]])
+
+    with open(config.report_template_path, encoding="utf-8") as report_template:
         report_file_template = report_template.read()
     template = Template(report_file_template)
 
     file_content = template.safe_substitute(table_json=json_logs)
 
-    report_file_name = Template(REPORT_FILE_NAME_TEMPLATE).substitute(
-        year=log_date.year, month=log_date.month, day=log_date.day
-    )
-
     report_path = os.path.join(config.report_dir, report_file_name)
-    with open(report_path, "w") as report_file:
+    with open(report_path, "w", encoding="utf-8") as report_file:
         report_file.write(file_content)
+
+
+def setup_logging(logging_path: str) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(os.path.join(logging_path, "log_analyzer.log")),
+        ],
+    )
+    structlog.configure(
+        logger_factory=LoggerFactory(),
+        processors=[
+            structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False, key="timestamp"),
+            structlog.processors.ExceptionRenderer(),
+            structlog.processors.KeyValueRenderer(key_order=["timestamp", "event", "exception"]),
+        ],
+    )
 
 
 def main() -> None:
     try:
-        if not os.path.exists(DEFAULT_CONFIG_PATH):
-            raise FileNotFoundError(f"Config file {DEFAULT_CONFIG_PATH} not found")
-        with open(DEFAULT_CONFIG_PATH) as config_file:
-            config_data = json.load(config_file)
-            config = Config.from_dict(
-                JsonConfig(
-                    LOG_DIR=config_data.get("LOG_DIR"),
-                    REPORT_DIR=config_data.get("REPORT_DIR"),
-                    REPORT_SIZE=config_data.get("REPORT_SIZE"),
-                    REPORT_TEMPLATE_PATH=config_data.get("REPORT_TEMPLATE_PATH"),
-                )
-            )
+        config = Config(
+            log_dir="./data/log",
+            report_dir="./data/report",
+            report_size=1000,
+            report_template_path="./data/report.html",
+            logging_path="./logs",
+            failure_threshold=0.3,
+        )
+        setup_logging(config.logging_path)
+
+        global logger
+        logger = structlog.get_logger()
+
+        logger.info("Starting log analyzer")
 
         args_config_path = parse_config()
         config = merge_config(config, args_config_path)
+        logger.debug(f"Config: {config}")
+
+        logging_path = config.logging_path
+        if not os.path.exists(logging_path):
+            os.makedirs(logging_path)
+
+        setup_logging(logging_path)
+        logger = structlog.get_logger()
 
         last_log_info = get_last_log_file_name(config.log_dir)
+        logger.info(f"Last log info: {last_log_info}")
 
-        processed_logs = analyze_logs(read_log_file(last_log_info.file_name, last_log_info.file_ext))
-        generate_report(last_log_info.log_date, processed_logs, config)
+        if not last_log_info:
+            logger.info("No log files provided in the log directory")
+            sys.exit(0)
+
+        report_file_name = generate_report_file_name(last_log_info.log_date)
+        if os.path.exists(os.path.join(config.report_dir, report_file_name)):
+            logger.info(f"Report file {report_file_name} already exists")
+            sys.exit(0)
+        logger.info(f"Report file name: {report_file_name}")
+
+        processed_logs = analyze_logs(read_log_file(last_log_info.file_name, last_log_info.file_ext), config)
+        generate_report(report_file_name, processed_logs, config)
+        logger.info("Report file generated")
+    except KeyboardInterrupt:
+        logger.error("User exited the program", exc_info=True)
+        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}", exc_info=True)
         sys.exit(1)
 
 
