@@ -12,4 +12,4 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN uv pip install --no-cache -e .
 
-CMD ["make", "run"]
+ENTRYPOINT ["python", "-m", "log_analyzer.log_analyzer"]
