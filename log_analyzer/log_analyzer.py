@@ -161,10 +161,8 @@ def main() -> None:
             report_dir="./data/report",
             report_size=1000,
             report_template_path="./data/report.html",
-            logging_path="./logs",
             failure_threshold=0.3,
         )
-        setup_logging(config.logging_path)
 
         global logger
         logger = structlog.get_logger()
@@ -176,7 +174,8 @@ def main() -> None:
         logger.debug(f"Config: {config}")
 
         config.validate()
-        setup_logging(config.logging_path)
+        if config.logging_path:
+            setup_logging(config.logging_path)
 
         last_log_info = get_last_log_file_name(config.log_dir)
         logger.info(f"Last log info: {last_log_info}")

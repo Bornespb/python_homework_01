@@ -12,8 +12,8 @@ class Config:
     report_dir: str
     report_size: int
     report_template_path: str
-    logging_path: str
     failure_threshold: float
+    logging_path: str | None = None
 
     def validate(self) -> None:
         if not self.log_dir:
@@ -34,11 +34,8 @@ class Config:
                 f"REPORT_TEMPLATE_PATH is not set or does not exist: {self.report_template_path}"
             )
 
-        if not self.logging_path:
-            raise ValueError(f"LOGGING_PATH is not set: {self.logging_path}")
-
-        if not self.failure_threshold:
-            raise ValueError(f"FAILURE_THRESHOLD is not set: {self.failure_threshold}")
+        if not self.failure_threshold or self.failure_threshold < 0 or self.failure_threshold > 1:
+            raise ValueError(f"FAILURE_THRESHOLD is not set or out of range: {self.failure_threshold}")
 
 
 @dataclass
