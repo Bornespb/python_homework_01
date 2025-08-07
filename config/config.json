@@ -1,0 +1,8 @@
+{
+    "LOG_DIR": "/var/log/nginx",
+    "REPORT_DIR": "/var/log/nginx/report",
+    "REPORT_SIZE": 10,
+    "REPORT_TEMPLATE_PATH": "/var/log/nginx/report.html",
+    "LOGGING_PATH": "/var/log/nginx/log.log",
+    "FAILURE_THRESHOLD": 10
+}
