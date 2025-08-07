@@ -42,6 +42,9 @@ exclude = ["data","log", "report"]
 [tool.ruff.format]
 line-ending = "lf"
 
+[tool.setuptools]
+packages = ["log_analyzer"]
+
 [tool.ruff.lint]
 select = [
     # pycodestyle
