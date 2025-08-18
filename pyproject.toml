@@ -1,0 +1,62 @@
+[project]
+name = "python-homework-01"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pytest>=8.4.1",
+    "structlog>=25.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "mypy>=1.17.1",
+    "ruff>=0.12.7",
+    "pytest-cov>=6.2.1",
+]
+
+[tool.mypy]
+python_version = "3.13"
+disallow_untyped_defs = true
+show_error_codes = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_ignores = true
+exclude = ["scripts", "docs", "test"]
+disable_error_code = ["name-defined"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+indent-width = 4
+target-version = "py313"
+exclude = ["data","log", "report"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.setuptools]
+packages = ["log_analyzer"]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]

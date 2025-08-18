@@ -1,0 +1,44 @@
+# .github/workflows/main.yml
+
+name: CI/CD # pipeline's name that will appear in Github Actions
+
+on: # events that trigger our pipeline: push on any branch and release creation
+  push:
+  release:
+    types: [created]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install Ruff
+        uses: astral-sh/ruff-action@v3
+
+      - name: Run linter
+        run: ruff check --fix
+
+      - name: Run formatter
+        run: ruff format
+
+      - name: Run mypy
+        run: |
+          uv run mypy -p log_analyzer
+
+      - name: Pytest
+        run: |
+          uv run coverage run -m --source=log_analyzer pytest tests
+          uv run coverage report

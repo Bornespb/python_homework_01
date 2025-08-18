@@ -1,0 +1,30 @@
+repos:
+# uv (lock file is up to date)
+- repo: https://github.com/astral-sh/uv-pre-commit
+  rev: 0.8.4
+  hooks:
+  - id: uv-lock
+# Ruff (replaces black, isort, linter)
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.12.7
+  hooks:
+  - id: ruff
+    args: [ --fix ]
+  - id: ruff-format
+# mypy
+- repo: local
+  hooks:
+    - id: mypy
+      name: mypy
+      entry: uv run mypy --strict -p log_analyzer
+      language: system
+      types: [python]
+      pass_filenames: false
+# pytest
+- repo: https://github.com/christophmeissner/pytest-pre-commit
+  rev: 1.0.0
+  hooks:
+  - id: pytest
+    pass_filenames: false
+    always_run: true
+    additional_dependencies: ['structlog>=25.4.0']
